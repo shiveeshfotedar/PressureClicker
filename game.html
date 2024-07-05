@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pressure Match</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            text-align: center;
+        }
+
+        .circle-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin-bottom: 40px;
+        }
+
+        .outer-circle, .inner-circle {
+            position: absolute;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .outer-circle {
+            width: 100%;
+            height: 100%;
+            background: #e0e0e0;
+            box-shadow: inset 5px 5px 15px rgba(0, 0, 0, 0.2), inset -5px -5px 15px rgba(255, 255, 255, 0.7);
+        }
+
+        .inner-circle {
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2), -5px -5px 15px rgba(255, 255, 255, 0.7);
+            transition: width 0.1s ease, height 0.1s ease, background-color 0.1s ease;
+        }
+
+        .matched {
+            background: linear-gradient(145deg, #aaffaa, #88cc88) !important;
+        }
+
+        #pressure-button {
+            width: 200px;
+            height: 80px;
+            font-size: 24px;
+            font-weight: 600;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(145deg, #007bff, #0066cc);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.1s ease, background-color 0.1s ease, box-shadow 0.1s ease, font-size 0.1s ease;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3), 5px 5px 15px rgba(0, 0, 0, 0.2), -5px -5px 15px rgba(255, 255, 255, 0.7);
+            margin-bottom: 40px;
+        }
+
+        #pressure-button.active {
+            background: linear-gradient(145deg, #3399ff, #3388cc);
+        }
+
+        .score {
+            margin-top: 20px;
+            font-size: 24px;
+            font-weight: 400;
+            color: #555;
+            padding: 10px 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            box-shadow: inset 3px 3px 5px rgba(0, 0, 0, 0.2), inset -3px -3px 5px rgba(255, 255, 255, 0.7);
+        }
+
+        #message {
+            display: none;
+            font-size: 32px;
+            font-weight: 600;
+            color: green;
+            margin-bottom: 20px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-content h2 {
+            margin: 0;
+            margin-bottom: 15px;
+        }
+
+        .modal-content p {
+            margin: 0;
+            margin-bottom: 20px;
+        }
+
+        .modal-content button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .modal-content button:hover {
+            background-color: #005bb5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="message">IT FITS!</div>
+        <div class="circle-container">
+            <div class="outer-circle"></div>
+            <div class="inner-circle"></div>
+        </div>
+        <button id="pressure-button">Press me</button>
+        <div class="score">Score: <span id="score">0</span></div>
+    </div>
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>Compatibility Notice</h2>
+            <p>This game only works with a Mac trackpad and Safari browser.</p>
+            <button onclick="closeModal()">OK</button>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/pressure/dist/pressure.min.js"></script>
+    <script>
+        let score = 0;
+        let outerCircleSize = 200;
+        let winPressure = 0.5;
+        let holdStartTime = null;
+        const holdDuration = 2000; // 2 seconds
+
+        function setRandomOuterCircleSize() {
+            const minSize = 100;
+            const maxSize = 300;
+            outerCircleSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+            const outerCircle = document.querySelector('.outer-circle');
+            outerCircle.style.width = `${outerCircleSize}px`;
+            outerCircle.style.height = `${outerCircleSize}px`;
+        }
+
+        function setRandomWinPressure() {
+            winPressure = 0.45 + Math.random() * 0.55; // Random pressure value between 0.45 and 1
+        }
+
+        function showMessage() {
+            const message = document.getElementById('message');
+            const circleContainer = document.querySelector('.circle-container');
+            const pressureButton = document.getElementById('pressure-button');
+
+            message.style.display = 'block';
+            circleContainer.style.display = 'none';
+            pressureButton.style.display = 'none';
+
+            setTimeout(() => {
+                message.style.display = 'none';
+                circleContainer.style.display = 'flex';
+                pressureButton.style.display = 'block';
+                setRandomOuterCircleSize();
+                setRandomWinPressure();
+            }, 1000);
+        }
+
+        Pressure.set('#pressure-button', {
+            start: function(event) {
+                this.classList.add('active');
+                holdStartTime = null; // Reset hold start time
+            },
+            change: function(force, event) {
+                const maxInnerCircleSize = outerCircleSize;
+                const innerCircleSize = maxInnerCircleSize * (force / winPressure);
+                const innerCircle = document.querySelector('.inner-circle');
+                const outerCircle = document.querySelector('.outer-circle');
+                
+                innerCircle.style.width = `${innerCircleSize}px`;
+                innerCircle.style.height = `${innerCircleSize}px`;
+
+                // Check if inner circle matches outer circle at the random win pressure
+                if (force >= winPressure - 0.05 && force <= winPressure + 0.05) {
+                    if (!holdStartTime) {
+                        holdStartTime = Date.now();
+                        innerCircle.classList.add('matched');
+                        outerCircle.classList.add('matched');
+                    } else if (Date.now() - holdStartTime >= holdDuration) {
+                        score++;
+                        document.getElementById('score').textContent = score;
+                        innerCircle.classList.remove('matched');
+                        outerCircle.classList.remove('matched');
+                        showMessage();
+                    }
+                } else {
+                    holdStartTime = null;
+                    innerCircle.classList.remove('matched');
+                    outerCircle.classList.remove('matched');
+                }
+
+                // Change the scale of the button proportionally to the pressure up to 0.5 (scale down)
+                if (force <= 0.5) {
+                    this.style.transform = `scale(${1 - force * 0.5})`;
+                    this.style.fontSize = '24px'; // Reset font size when force is less than 0.5
+                } else {
+                    this.style.transform = `scale(0.75)`; // Fixed size after 0.5 pressure
+                    const fontSize = 24 - (force - 0.5) * 16; // Reduce font size after 0.5 pressure, less exaggerated
+                    this.style.fontSize = `${fontSize}px`;
+                }
+
+                // Adjust the shadow based on pressure
+                if (force <= 0.5) {
+                    // Outer shadow becomes less pronounced as pressure increases up to 0.5
+                    const shadowDistance = 10 - force * 20;
+                    this.style.boxShadow = `0 ${shadowDistance}px ${shadowDistance * 2}px rgba(0, 0, 0, 0.5)`;
+                } else {
+                    // Inner shadow with more spread and increased blur as pressure exceeds 0.5
+                    const innerShadowStrength = (force - 0.5) * 30;
+                    const blurStrength = (force - 0.5) * 20;
+                    this.style.boxShadow = `inset 0 0 ${blurStrength}px ${innerShadowStrength}px rgba(0, 0, 0, 0.3)`;
+                }
+            },
+            end: function() {
+                this.classList.remove('active');
+                const innerCircle = document.querySelector('.inner-circle');
+                innerCircle.style.width = '0';
+                innerCircle.style.height = '0';
+                this.style.transform = 'scale(1)';
+                this.style.fontSize = '24px'; // Reset font size
+                this.style.boxShadow = '0 10px 20px rgba(0, 0, 0, 0.3)'; // Reset to default outer shadow
+                holdStartTime = null; // Reset hold start time
+                innerCircle.classList.remove('matched');
+                const outerCircle = document.querySelector('.outer-circle');
+                outerCircle.classList.remove('matched');
+            },
+            unsupported: function() {
+                alert('Pressure.js is not supported on this device.');
+            }
+        });
+
+        function isMacTrackpad() {
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            return isMac && isSafari;
+        }
+
+        function showModal() {
+            const modal = document.getElementById('modal');
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('modal');
+            modal.style.display = 'none';
+        }
+
+        window.onload = function() {
+            if (!isMacTrackpad()) {
+                showModal();
+            }
+        };
+
+        // Initialize game with a random outer circle size and random win pressure
+        setRandomOuterCircleSize();
+        setRandomWinPressure();
+    </script>
+</body>
+</html>
